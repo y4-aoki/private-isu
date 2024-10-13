@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"io"
 	"log"
+	"net/http/pprof"
 	"net/http"
 	"net/url"
 	"os"
@@ -792,6 +793,11 @@ func postAdminBanned(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	// pprof用のHTTPサーバーを起動 (ポート6060)
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+	
 	host := os.Getenv("ISUCONP_DB_HOST")
 	if host == "" {
 		host = "localhost"
