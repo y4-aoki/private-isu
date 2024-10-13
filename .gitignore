@@ -16,3 +16,6 @@ portal/tmp
 !/portal/log/.keep
 /portal/tmp
 .vagrant
+isucon.ppk
+isucon.pem
+Memo.md
