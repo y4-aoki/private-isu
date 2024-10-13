@@ -64,7 +64,7 @@ type Comment struct {
 	UserID    int       `db:"user_id"`
 	Comment   string    `db:"comment"`
 	CreatedAt time.Time `db:"created_at"`
-	User      User
+	User      User      `db:"user"`
 }
 
 func init() {
@@ -181,7 +181,29 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 			return nil, err
 		}
 
-		query := "SELECT * FROM `comments` JOIN `users` ON `users`.`id` = `comments`.`user_id` WHERE `comments`.`post_id` = ? ORDER BY `comments`.`created_at` DESC"
+		query := `
+		SELECT 
+			comments.id AS id, 
+			comments.post_id AS post_id, 
+			comments.user_id AS user_id, 
+			comments.comment AS comment, 
+			comments.created_at AS created_at, 
+			users.id AS "user.id", 
+			users.account_name AS "user.account_name", 
+			users.passhash AS "user.passhash", 
+			users.authority AS "user.authority", 
+			users.del_flg AS "user.del_flg", 
+			users.created_at AS "user.created_at"
+		FROM 
+			comments 
+		JOIN 
+			users 
+		ON 
+			users.id = comments.user_id 
+		WHERE 
+			comments.post_id = ? 
+		ORDER BY 
+			comments.created_at DESC`
 		if !allComments {
 			query += " LIMIT 3"
 		}
