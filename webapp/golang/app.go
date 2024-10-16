@@ -732,7 +732,7 @@ func getImage(w http.ResponseWriter, r *http.Request) {
 	post := Post{}
 
 	// 画像データをサーバから取得する
-	imagePath := fmt.Sprintf("../public/image/%d%s", pid, path.Ext(r.PathValue("ext")))
+	imagePath := fmt.Sprintf("../public/image/%d.%s", pid, r.PathValue("ext"))
 	filedata, err := os.ReadFile(imagePath)
 	if err != nil {
 		log.Print(err)
