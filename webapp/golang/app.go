@@ -730,14 +730,21 @@ func getImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	post := Post{}
+	// DBから拡張子を取得する
+	err = db.Get(&post, "SELECT `mime` FROM `posts` WHERE `id` = ?", pid)
+	if err != nil {
+		log.Print(err)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
 
 	// 画像データをサーバから取得する
 	imagePath := fmt.Sprintf("../public/image/%d.%s", pid, r.PathValue("ext"))
-	filedata, err := os.ReadFile(imagePath)
+	post.Imgdata, err = os.ReadFile(imagePath)
 	if err != nil {
 		log.Print(err)
 		// 画像データがサーバに存在しない場合はDBから取得する
-		err = db.Get(&post, "SELECT `imgdata` FROM `posts` WHERE `id` = ?", pid)
+		err = db.Get(&post, "SELECT * FROM `posts` WHERE `id` = ?", pid)
 		if err != nil {
 			log.Print(err)
 			w.WriteHeader(http.StatusNotFound)
@@ -755,9 +762,7 @@ func getImage(w http.ResponseWriter, r *http.Request) {
 			log.Print(err)
 			return
 		}
-		filedata = post.Imgdata
 	}
-	post.Imgdata = filedata
 
 	// err = db.Get(&post, "SELECT * FROM `posts` WHERE `id` = ?", pid)
 	// if err != nil {
