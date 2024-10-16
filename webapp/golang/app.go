@@ -730,6 +730,7 @@ func getImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	post := Post{}
+	log.Print("this is pid", pid)
 	// // DBから拡張子を取得する
 	// err = db.Get(&post, "SELECT `mime` FROM `posts` WHERE `id` = ?", pid)
 	// if err != nil {
