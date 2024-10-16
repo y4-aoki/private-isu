@@ -698,7 +698,7 @@ func postIndex(w http.ResponseWriter, r *http.Request) {
 		log.Print(err)
 		return
 	}
-	imagePath := fmt.Sprintf("../public/image/%d%s", lastInsertID, path.Ext(header.Filename))
+	imagePath := fmt.Sprintf("../public/img/%d%s", lastInsertID, path.Ext(header.Filename))
 	out, err := os.Create(imagePath)
 	if err != nil {
 		log.Print(err)
@@ -738,7 +738,7 @@ func getImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 画像データをサーバから取得する
-	imagePath := fmt.Sprintf("../public/image/%d%s", pid, post.Mime)
+	imagePath := fmt.Sprintf("../public/img/%d%s", pid, post.Mime)
 	filedata, err := os.ReadFile(imagePath)
 	if err != nil {
 		log.Print(err)
