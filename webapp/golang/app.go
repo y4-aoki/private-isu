@@ -692,6 +692,25 @@ func postIndex(w http.ResponseWriter, r *http.Request) {
 		log.Print(err)
 		return
 	}
+	// imageデータをサーバに保存する
+	lastInsertID, err := result.LastInsertId()
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	imagePath := fmt.Sprintf("../public/image/%d%s", lastInsertID, path.Ext(header.Filename))
+	out, err := os.Create(imagePath)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	defer out.Close()
+
+	_, err = out.Write(filedata)
+	if err != nil {
+		log.Print(err)
+		return
+	}
 
 	pid, err := result.LastInsertId()
 	if err != nil {
@@ -711,11 +730,34 @@ func getImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	post := Post{}
-	err = db.Get(&post, "SELECT * FROM `posts` WHERE `id` = ?", pid)
+	// 拡張子をDBから取得する
+	err = db.Get(&post, "SELECT `mime` FROM `posts` WHERE `id` = ?", pid)
 	if err != nil {
 		log.Print(err)
 		return
 	}
+
+	// 画像データをサーバから取得する
+	imagePath := fmt.Sprintf("../public/image/%d%s", pid, post.Mime)
+	filedata, err := os.ReadFile(imagePath)
+	if err != nil {
+		log.Print(err)
+		// 画像データがサーバに存在しない場合はDBから取得する
+		err = db.Get(&post, "SELECT `imgdata` FROM `posts` WHERE `id` = ?", pid)
+		if err != nil {
+			log.Print(err)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		filedata = post.Imgdata
+	}
+	post.Imgdata = filedata
+
+	// err = db.Get(&post, "SELECT * FROM `posts` WHERE `id` = ?", pid)
+	// if err != nil {
+	// 	log.Print(err)
+	// 	return
+	// }
 
 	ext := r.PathValue("ext")
 
