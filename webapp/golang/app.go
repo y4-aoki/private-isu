@@ -730,39 +730,39 @@ func getImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	post := Post{}
-	// DBから拡張子を取得する
-	err = db.Get(&post, "SELECT `mime` FROM `posts` WHERE `id` = ?", pid)
+	// // DBから拡張子を取得する
+	// err = db.Get(&post, "SELECT `mime` FROM `posts` WHERE `id` = ?", pid)
+	// if err != nil {
+	// 	log.Print(err)
+	// 	w.WriteHeader(http.StatusNotFound)
+	// 	return
+	// }
+
+	// // 画像データをサーバから取得する
+	imagePath := fmt.Sprintf("../public/image/%d.%s", pid, r.PathValue("ext"))
+	// post.Imgdata, err = os.ReadFile(imagePath)
+	// if err != nil {
+	// log.Print(err)
+	// 画像データがサーバに存在しない場合はDBから取得する
+	err = db.Get(&post, "SELECT * FROM `posts` WHERE `id` = ?", pid)
 	if err != nil {
 		log.Print(err)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-
-	// 画像データをサーバから取得する
-	imagePath := fmt.Sprintf("../public/image/%d.%s", pid, r.PathValue("ext"))
-	post.Imgdata, err = os.ReadFile(imagePath)
+	out, err := os.Create(imagePath)
 	if err != nil {
 		log.Print(err)
-		// 画像データがサーバに存在しない場合はDBから取得する
-		err = db.Get(&post, "SELECT * FROM `posts` WHERE `id` = ?", pid)
-		if err != nil {
-			log.Print(err)
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		out, err := os.Create(imagePath)
-		if err != nil {
-			log.Print(err)
-			return
-		}
-		defer out.Close()
-
-		_, err = out.Write(post.Imgdata)
-		if err != nil {
-			log.Print(err)
-			return
-		}
+		return
 	}
+	defer out.Close()
+
+	_, err = out.Write(post.Imgdata)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	// }
 
 	// err = db.Get(&post, "SELECT * FROM `posts` WHERE `id` = ?", pid)
 	// if err != nil {
