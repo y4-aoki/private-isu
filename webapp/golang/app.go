@@ -738,7 +738,7 @@ func getImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 画像データをサーバから取得する
-	imagePath := fmt.Sprintf("../public/img/%d%s", pid, post.Mime)
+	imagePath := fmt.Sprintf("../public/img/%d%s", pid, path.Ext(r.PathValue("ext")))
 	filedata, err := os.ReadFile(imagePath)
 	if err != nil {
 		log.Print(err)
@@ -747,6 +747,18 @@ func getImage(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Print(err)
 			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		out, err := os.Create(imagePath)
+		if err != nil {
+			log.Print(err)
+			return
+		}
+		defer out.Close()
+
+		_, err = out.Write(post.Imgdata)
+		if err != nil {
+			log.Print(err)
 			return
 		}
 		filedata = post.Imgdata
