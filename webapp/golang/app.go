@@ -186,9 +186,25 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 	var posts []Post
 
 	for _, p := range results {
-		err := db.Get(&p.CommentCount, "SELECT COUNT(*) AS `count` FROM `comments` WHERE `post_id` = ?", p.ID)
-		if err != nil {
+		cacheKey := fmt.Sprintf("comment_count_%d", p.ID)
+		item, err := memcacheClient.Get(cacheKey)
+		if err == memcache.ErrCacheMiss {
+			err := db.Get(&p.CommentCount, "SELECT COUNT(*) AS `count` FROM `comments` WHERE `post_id` = ?", p.ID)
+			if err != nil {
+				return nil, err
+			}
+			memcacheClient.Set(&memcache.Item{
+				Key:        cacheKey,
+				Value:      []byte(strconv.Itoa(p.CommentCount)),
+				Expiration: 10,
+			})
+		} else if err != nil {
 			return nil, err
+		} else {
+			p.CommentCount, err = strconv.Atoi(string(item.Value))
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		query := "SELECT * FROM `comments` WHERE `post_id` = ? ORDER BY `created_at` DESC"
