@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	_ "net/http/pprof"
 	"net/url"
 	"os"
 	"os/exec"
@@ -64,7 +63,7 @@ type Comment struct {
 	UserID    int       `db:"user_id"`
 	Comment   string    `db:"comment"`
 	CreatedAt time.Time `db:"created_at"`
-	User      User      `db:"user"`
+	User      User
 }
 
 func init() {
@@ -181,29 +180,7 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 			return nil, err
 		}
 
-		query := `
-		SELECT 
-			comments.id AS id, 
-			comments.post_id AS post_id, 
-			comments.user_id AS user_id, 
-			comments.comment AS comment, 
-			comments.created_at AS created_at, 
-			users.id AS "user.id", 
-			users.account_name AS "user.account_name", 
-			users.passhash AS "user.passhash", 
-			users.authority AS "user.authority", 
-			users.del_flg AS "user.del_flg", 
-			users.created_at AS "user.created_at"
-		FROM 
-			comments 
-		JOIN 
-			users 
-		ON 
-			users.id = comments.user_id 
-		WHERE 
-			comments.post_id = ? 
-		ORDER BY 
-			comments.created_at DESC`
+		query := "SELECT * FROM `comments` WHERE `post_id` = ? ORDER BY `created_at` DESC"
 		if !allComments {
 			query += " LIMIT 3"
 		}
@@ -212,22 +189,13 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 		if err != nil {
 			return nil, err
 		}
-		// query := "SELECT * FROM `comments` WHERE `post_id` = ? ORDER BY `created_at` DESC"
-		// if !allComments {
-		// 	query += " LIMIT 3"
-		// }
-		// var comments []Comment
-		// err = db.Select(&comments, query, p.ID)
-		// if err != nil {
-		// 	return nil, err
-		// }
 
-		// for i := 0; i < len(comments); i++ {
-		// 	err := db.Get(&comments[i].User, "SELECT * FROM `users` WHERE `id` = ?", comments[i].UserID)
-		// 	if err != nil {
-		// 		return nil, err
-		// 	}
-		// }
+		for i := 0; i < len(comments); i++ {
+			err := db.Get(&comments[i].User, "SELECT * FROM `users` WHERE `id` = ?", comments[i].UserID)
+			if err != nil {
+				return nil, err
+			}
+		}
 
 		// reverse
 		for i, j := 0, len(comments)-1; i < j; i, j = i+1, j-1 {
@@ -692,25 +660,6 @@ func postIndex(w http.ResponseWriter, r *http.Request) {
 		log.Print(err)
 		return
 	}
-	// imageデータをサーバに保存する
-	lastInsertID, err := result.LastInsertId()
-	if err != nil {
-		log.Print(err)
-		return
-	}
-	imagePath := fmt.Sprintf("../public/image/%d%s", lastInsertID, path.Ext(header.Filename))
-	out, err := os.Create(imagePath)
-	if err != nil {
-		log.Print(err)
-		return
-	}
-	defer out.Close()
-
-	_, err = out.Write(filedata)
-	if err != nil {
-		log.Print(err)
-		return
-	}
 
 	pid, err := result.LastInsertId()
 	if err != nil {
@@ -730,46 +679,11 @@ func getImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	post := Post{}
-	log.Print("this is pid", pid)
-	// // DBから拡張子を取得する
-	// err = db.Get(&post, "SELECT `mime` FROM `posts` WHERE `id` = ?", pid)
-	// if err != nil {
-	// 	log.Print(err)
-	// 	w.WriteHeader(http.StatusNotFound)
-	// 	return
-	// }
-
-	// // 画像データをサーバから取得する
-	imagePath := fmt.Sprintf("../public/image/%d.%s", pid, r.PathValue("ext"))
-	// post.Imgdata, err = os.ReadFile(imagePath)
-	// if err != nil {
-	// log.Print(err)
-	// 画像データがサーバに存在しない場合はDBから取得する
 	err = db.Get(&post, "SELECT * FROM `posts` WHERE `id` = ?", pid)
 	if err != nil {
 		log.Print(err)
-		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	out, err := os.Create(imagePath)
-	if err != nil {
-		log.Print(err)
-		return
-	}
-	defer out.Close()
-
-	_, err = out.Write(post.Imgdata)
-	if err != nil {
-		log.Print(err)
-		return
-	}
-	// }
-
-	// err = db.Get(&post, "SELECT * FROM `posts` WHERE `id` = ?", pid)
-	// if err != nil {
-	// 	log.Print(err)
-	// 	return
-	// }
 
 	ext := r.PathValue("ext")
 
@@ -878,11 +792,6 @@ func postAdminBanned(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// pprof用のHTTPサーバーを起動 (ポート6060)
-	go func() {
-		log.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
-
 	host := os.Getenv("ISUCONP_DB_HOST")
 	if host == "" {
 		host = "localhost"
