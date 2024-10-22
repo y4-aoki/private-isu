@@ -53,7 +53,7 @@ type Post struct {
 	CreatedAt    time.Time `db:"created_at"`
 	CommentCount int
 	Comments     []Comment
-	User         User
+	User         User `db:"User"`
 	CSRFToken    string
 }
 
@@ -422,7 +422,6 @@ func getIndex(w http.ResponseWriter, r *http.Request) {
 		log.Print(err)
 		return
 	}
-	log.Print(results)
 
 	posts, err := makePosts(results, getCSRFToken(r), false)
 	if err != nil {
