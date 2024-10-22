@@ -19,6 +19,7 @@ import (
 	"github.com/bradfitz/gomemcache/memcache"
 	gsm "github.com/bradleypeabody/gorilla-sessions-memcache"
 	"github.com/go-chi/chi/v5"
+	"encoding/json"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
 	"github.com/jmoiron/sqlx"
@@ -210,14 +211,37 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 			}
 		}
 
-		query := "SELECT * FROM `comments` WHERE `post_id` = ? ORDER BY `created_at` DESC"
-		if !allComments {
-			query += " LIMIT 3"
-		}
+		cacheKey = fmt.Sprintf("comments_%d_%t", p.ID, allComments)
+		item, err = memcacheClient.Get(cacheKey)
 		var comments []Comment
-		err = db.Select(&comments, query, p.ID)
-		if err != nil {
+		if err == memcache.ErrCacheMiss {
+			log.Printf("cache miss: %s", cacheKey)
+			query := "SELECT * FROM `comments` WHERE `post_id` = ? ORDER BY `created_at` DESC"
+			if !allComments {
+				query += " LIMIT 3"
+			}
+			err = db.Select(&comments, query, p.ID)
+			if err != nil {
+				return nil, err
+			}
+			commentsData, err := json.Marshal(comments)
+			if err != nil {
+				return nil, err
+			}
+			memcacheClient.Set(&memcache.Item{
+				Key:        cacheKey,
+				Value:      commentsData,
+				Expiration: 10,
+			})
+			log.Printf("cache set: %s", cacheKey)
+		} else if err != nil {
 			return nil, err
+		} else {
+			log.Printf("cache hit: %s", cacheKey)
+			err = json.Unmarshal(item.Value, &comments)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		for i := 0; i < len(comments); i++ {
