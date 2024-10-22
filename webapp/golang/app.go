@@ -603,7 +603,7 @@ func getPostsID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	results := []Post{}
-	query := `SELECT posts.id as id, posts.user_id as user_id, posts.body as body, posts.mime as mime, posts.created_at 
+	query := `SELECT posts.id as id, posts.user_id as user_id, posts.body as body, posts.mime as mime, posts.created_at,
 	users.id as "User.id", users.account_name as "User.account_name", users.authority as "User.authority", users.del_flg as "User.del_flg", users.created_at as "User.created_at"
 	FROM posts 
 	JOIN users ON posts.user_id = users.id 
