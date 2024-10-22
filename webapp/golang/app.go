@@ -66,7 +66,7 @@ type Comment struct {
 	UserID    int       `db:"user_id"`
 	Comment   string    `db:"comment"`
 	CreatedAt time.Time `db:"created_at"`
-	User      User
+	User      User      `db:"User"`
 }
 
 func init() {
@@ -253,7 +253,6 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 		cacheKey = fmt.Sprintf("comments_%d_%t", p.ID, allComments)
 		item, ok = comments_cache[cacheKey]
 		if !ok {
-			log.Printf("cache miss: %s", cacheKey)
 			query := `SELECT comments.id, comments.post_id, comments.user_id, comments.comment, comments.created_at,
 				users.id as "User.id", users.account_name as "User.account_name", users.authority as "User.authority", users.del_flg as "User.del_flg", users.created_at as "User.created_at"
 				FROM comments
