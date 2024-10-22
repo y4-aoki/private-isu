@@ -120,7 +120,6 @@ func escapeshellarg(arg string) string {
 }
 
 func digest(src string) string {
-	// opensslのバージョンによっては (stdin)= というのがつくので取る
 	hash := sha512.New()
 	_, err := hash.Write([]byte(src))
 	if err != nil {
@@ -128,12 +127,7 @@ func digest(src string) string {
 		return ""
 	}
 	out := hash.Sum(nil)
-	if err != nil {
-		log.Print(err)
-		return ""
-	}
-
-	return strings.TrimSuffix(string(out), "\n")
+	return fmt.Sprintf("%x", out)
 }
 
 func calculateSalt(accountName string) string {
