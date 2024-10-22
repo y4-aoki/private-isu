@@ -687,6 +687,14 @@ func getImage(w http.ResponseWriter, r *http.Request) {
 
 	ext := r.PathValue("ext")
 
+	// 取得したイメージをサーバに保存する
+	imagePath := fmt.Sprintf("../public/images/%d.%s", pid, ext)
+	err = os.WriteFile(imagePath, post.Imgdata, 0666)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
 	if ext == "jpg" && post.Mime == "image/jpeg" ||
 		ext == "png" && post.Mime == "image/png" ||
 		ext == "gif" && post.Mime == "image/gif" {
