@@ -417,7 +417,15 @@ func getIndex(w http.ResponseWriter, r *http.Request) {
 	WHERE users.del_flg = 0 
 	ORDER BY posts.created_at DESC 
 	LIMIT 20`
-	err := db.Select(&results, query)
+
+	// プリペアドステートメントを準備
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	err = stmt.QueryRow().Scan(&results)
 	if err != nil {
 		log.Print(err)
 		return
