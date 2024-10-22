@@ -25,9 +25,8 @@ import (
 )
 
 var (
-	db             *sqlx.DB
-	store          *gsm.MemcacheStore
-	memcacheClient *memcache.Client
+	db    *sqlx.DB
+	store *gsm.MemcacheStore
 )
 
 const (
@@ -72,7 +71,7 @@ func init() {
 	if memdAddr == "" {
 		memdAddr = "localhost:11211"
 	}
-	memcacheClient = memcache.New(memdAddr)
+	memcacheClient := memcache.New(memdAddr)
 	store = gsm.NewMemcacheStore(memcacheClient, "iscogram_", []byte("sendagaya"))
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 }
@@ -186,25 +185,9 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 	var posts []Post
 
 	for _, p := range results {
-		cacheKey := fmt.Sprintf("comment_count_%d", p.ID)
-		item, err := memcacheClient.Get(cacheKey)
-		if err == memcache.ErrCacheMiss {
-			err := db.Get(&p.CommentCount, "SELECT COUNT(*) AS `count` FROM `comments` WHERE `post_id` = ?", p.ID)
-			if err != nil {
-				return nil, err
-			}
-			memcacheClient.Set(&memcache.Item{
-				Key:        cacheKey,
-				Value:      []byte(strconv.Itoa(p.CommentCount)),
-				Expiration: 10,
-			})
-		} else if err != nil {
+		err := db.Get(&p.CommentCount, "SELECT COUNT(*) AS `count` FROM `comments` WHERE `post_id` = ?", p.ID)
+		if err != nil {
 			return nil, err
-		} else {
-			p.CommentCount, err = strconv.Atoi(string(item.Value))
-			if err != nil {
-				return nil, err
-			}
 		}
 
 		query := "SELECT * FROM `comments` WHERE `post_id` = ? ORDER BY `created_at` DESC"
@@ -804,9 +787,6 @@ func postComment(w http.ResponseWriter, r *http.Request) {
 		log.Print(err)
 		return
 	}
-	// コメント数をキャッシュから削除
-	cacheKey := fmt.Sprintf("comment_count_%d", postID)
-	memcacheClient.Delete(cacheKey)
 
 	http.Redirect(w, r, fmt.Sprintf("/posts/%d", postID), http.StatusFound)
 }
