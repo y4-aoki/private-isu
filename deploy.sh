@@ -12,4 +12,4 @@ rotate_mysql="sudo mv -v /var/log/mysql/mysql-slow.log /var/log/mysql/mysql-slow
 rotate_nginx="sudo mv -v /var/log/nginx/access.log /var/log/nginx/access.log.$now && sudo systemctl reload nginx"
 
 git push origin $branch
-ssh -i isucon.pem isucon@18.181.244.100 "$update && $restart && $rotate_mysql && $rotate_nginx"
+ssh -i isucon.pem isucon@54.238.8.136 "$update && $restart && $rotate_mysql && $rotate_nginx"
