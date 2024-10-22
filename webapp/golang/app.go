@@ -813,20 +813,27 @@ func postIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := "INSERT INTO `posts` (`user_id`, `mime`, `imgdata`, `body`) VALUES (?,?,?,?)"
+	query := "INSERT INTO `posts` (`user_id`, `mime`, `body`) VALUES (?,?,?,?)"
 	result, err := db.Exec(
 		query,
 		me.ID,
 		mime,
-		filedata,
 		r.FormValue("body"),
 	)
 	if err != nil {
 		log.Print(err)
 		return
 	}
+	// 画像はサーバに保存する
+	// 画像のIDはDBのIDと同じ
+	pid, _ := result.LastInsertId()
+	imagePath := fmt.Sprintf("../public/image/%d.%s", pid, strings.TrimPrefix(mime, "image/"))
+	err = os.WriteFile(imagePath, filedata, 0666)
+	if err != nil {
+		log.Print(err)
+		return
+	}
 
-	pid, err := result.LastInsertId()
 	if err != nil {
 		log.Print(err)
 		return
