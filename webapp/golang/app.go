@@ -218,6 +218,17 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 		return nil, err
 	}
 
+	// memcacheClient.GetMultiを使って一括で取得
+	// 引数は"comments_%d_%t"を配列にしたもの
+	keys = make([]string, len(results))
+	for i, p := range results {
+		keys[i] = fmt.Sprintf("comments_%d_%t", p.ID, allComments)
+	}
+	comments_cache, err := memcacheClient.GetMulti(keys)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, p := range results {
 		cacheKey := fmt.Sprintf("comment_count_%d", p.ID)
 		item, ok := comment_count_cache[cacheKey]
@@ -238,10 +249,10 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 			}
 		}
 
-		cacheKey = fmt.Sprintf("comments_%d_%t", p.ID, allComments)
-		item, err = memcacheClient.Get(cacheKey)
 		var comments []Comment
-		if err == memcache.ErrCacheMiss {
+		cacheKey = fmt.Sprintf("comments_%d_%t", p.ID, allComments)
+		item, ok = comments_cache[cacheKey]
+		if !ok {
 			log.Printf("cache miss: %s", cacheKey)
 			query := "SELECT * FROM `comments` WHERE `post_id` = ? ORDER BY `created_at` DESC"
 			if !allComments {
@@ -260,9 +271,6 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 				Value:      commentsData,
 				Expiration: 10,
 			})
-			log.Printf("cache set: %s", cacheKey)
-		} else if err != nil {
-			return nil, err
 		} else {
 			log.Printf("cache hit: %s", cacheKey)
 			err = json.Unmarshal(item.Value, &comments)
