@@ -2,6 +2,7 @@ package main
 
 import (
 	crand "crypto/rand"
+	"crypto/sha512"
 	"fmt"
 	"html/template"
 	"io"
@@ -9,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path"
 	"regexp"
 	"strconv"
@@ -121,7 +121,13 @@ func escapeshellarg(arg string) string {
 
 func digest(src string) string {
 	// opensslのバージョンによっては (stdin)= というのがつくので取る
-	out, err := exec.Command("/bin/bash", "-c", `printf "%s" `+escapeshellarg(src)+` | openssl dgst -sha512 | sed 's/^.*= //'`).Output()
+	hash := sha512.New()
+	_, err := hash.Write([]byte(src))
+	if err != nil {
+		log.Print(err)
+		return ""
+	}
+	out := hash.Sum(nil)
 	if err != nil {
 		log.Print(err)
 		return ""
@@ -359,6 +365,15 @@ func getCSRFToken(r *http.Request) string {
 	return csrfToken.(string)
 }
 
+// secureRandomStrは、指定されたバイト長のセキュアなランダム文字列を生成します。
+// crypto/randを使用してランダムバイトを読み取り、それらのバイトの16進数表現を返します。
+// ランダムバイトの読み取り中にエラーが発生した場合、この関数はパニックを引き起こします。
+//
+// パラメータ:
+// - b: 生成するランダムバイトの数。
+//
+// 戻り値:
+// - ランダムバイトの16進数表現の文字列。
 func secureRandomStr(b int) string {
 	k := make([]byte, b)
 	if _, err := crand.Read(k); err != nil {
