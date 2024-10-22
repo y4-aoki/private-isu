@@ -207,10 +207,21 @@ func getFlash(w http.ResponseWriter, r *http.Request, key string) string {
 func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, error) {
 	var posts []Post
 
+	// memcacheClient.GetMultiを使って一括で取得
+	// 引数は"comment_count_%d", p.IDを配列にしたもの
+	keys := make([]string, len(results))
+	for i, p := range results {
+		keys[i] = fmt.Sprintf("comment_count_%d", p.ID)
+	}
+	comment_count_cache, err := memcacheClient.GetMulti(keys)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, p := range results {
 		cacheKey := fmt.Sprintf("comment_count_%d", p.ID)
-		item, err := memcacheClient.Get(cacheKey)
-		if err == memcache.ErrCacheMiss {
+		item, ok := comment_count_cache[cacheKey]
+		if !ok {
 			err := db.Get(&p.CommentCount, "SELECT COUNT(*) AS `count` FROM `comments` WHERE `post_id` = ?", p.ID)
 			if err != nil {
 				return nil, err
@@ -220,8 +231,6 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 				Value:      []byte(strconv.Itoa(p.CommentCount)),
 				Expiration: 10,
 			})
-		} else if err != nil {
-			return nil, err
 		} else {
 			p.CommentCount, err = strconv.Atoi(string(item.Value))
 			if err != nil {
