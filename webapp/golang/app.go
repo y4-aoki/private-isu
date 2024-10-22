@@ -189,6 +189,7 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 		cacheKey := fmt.Sprintf("comment_count_%d", p.ID)
 		item, err := memcacheClient.Get(cacheKey)
 		if err == memcache.ErrCacheMiss {
+			log.Printf("cache miss: %s", cacheKey)
 			err := db.Get(&p.CommentCount, "SELECT COUNT(*) AS `count` FROM `comments` WHERE `post_id` = ?", p.ID)
 			if err != nil {
 				return nil, err
@@ -198,9 +199,11 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 				Value:      []byte(strconv.Itoa(p.CommentCount)),
 				Expiration: 10,
 			})
+			log.Printf("cache set: %s", cacheKey)
 		} else if err != nil {
 			return nil, err
 		} else {
+			log.Printf("cache hit: %s", cacheKey)
 			p.CommentCount, err = strconv.Atoi(string(item.Value))
 			if err != nil {
 				return nil, err
