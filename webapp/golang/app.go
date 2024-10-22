@@ -276,7 +276,6 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 				Expiration: 10,
 			})
 		} else {
-			log.Printf("cache hit: %s", cacheKey)
 			err = json.Unmarshal(item.Value, &comments)
 			if err != nil {
 				return nil, err
