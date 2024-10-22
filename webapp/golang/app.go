@@ -400,11 +400,11 @@ func getLogout(w http.ResponseWriter, r *http.Request) {
 //   - r: HTTPリクエストを表す*http.Request。
 //
 // この関数は以下の手順を実行します:
-//   1. 現在のセッションユーザーを取得します。
-//   2. 作成日を降順に並べ替えた投稿をデータベースから取得します。
-//   3. CSRFトークンなどの追加情報を含むように投稿を処理します。
-//   4. カスタムテンプレート関数のためのテンプレート関数マップを定義します。
-//   5. 投稿、ユーザー情報、CSRFトークン、およびフラッシュメッセージを含むインデックスページのテンプレートをレンダリングします。
+//  1. 現在のセッションユーザーを取得します。
+//  2. 作成日を降順に並べ替えた投稿をデータベースから取得します。
+//  3. CSRFトークンなどの追加情報を含むように投稿を処理します。
+//  4. カスタムテンプレート関数のためのテンプレート関数マップを定義します。
+//  5. 投稿、ユーザー情報、CSRFトークン、およびフラッシュメッセージを含むインデックスページのテンプレートをレンダリングします。
 //
 // データベースクエリやテンプレートレンダリング中にエラーが発生した場合、エラーをログに記録し、レスポンスを書き込まずに戻ります。
 func getIndex(w http.ResponseWriter, r *http.Request) {
@@ -412,7 +412,13 @@ func getIndex(w http.ResponseWriter, r *http.Request) {
 
 	results := []Post{}
 
-	err := db.Select(&results, "SELECT `id`, `user_id`, `body`, `mime`, `created_at` FROM `posts` ORDER BY `created_at` DESC LIMIT 3")
+	query := `SELECT posts.id as id, posts.user_id as user_id, posts.body as body, posts.mime as mime, posts.created_at 
+	FROM posts 
+	JOIN users ON posts.user_id = users.id 
+	WHERE users.del_flg = 0 
+	ORDER BY posts.created_at DESC 
+	LIMIT 20`
+	err := db.Select(&results, query)
 	if err != nil {
 		log.Print(err)
 		return
