@@ -171,6 +171,16 @@ func getFlash(w http.ResponseWriter, r *http.Request, key string) string {
 	}
 }
 
+// makePostsは、Postオブジェクトのリストを処理し、関連するコメントやユーザーの詳細をデータベースから取得して、必要な詳細が埋め込まれた投稿のリストを返します。
+//
+// パラメータ:
+//   - results: 処理するPostオブジェクトのスライス。
+//   - csrfToken: 各投稿に含めるCSRFトークンを表す文字列。
+//   - allComments: すべてのコメントを取得するか、最新の3件に制限するかを示すブール値。
+//
+// 戻り値:
+//   - []Post: 必要な詳細が埋め込まれた投稿のスライス。
+//   - error: エラーが発生した場合、そのエラー。
 func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, error) {
 	var posts []Post
 
@@ -381,12 +391,28 @@ func getLogout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
+// getIndexはインデックスページのHTTPリクエストを処理します。
+// 現在のセッションユーザーを取得し、データベースから投稿を取得し、
+// それらを処理して、投稿とユーザー情報を含むインデックスページのテンプレートをレンダリングします。
+//
+// パラメータ:
+//   - w: HTTPレスポンスを書き込むためのhttp.ResponseWriter。
+//   - r: HTTPリクエストを表す*http.Request。
+//
+// この関数は以下の手順を実行します:
+//   1. 現在のセッションユーザーを取得します。
+//   2. 作成日を降順に並べ替えた投稿をデータベースから取得します。
+//   3. CSRFトークンなどの追加情報を含むように投稿を処理します。
+//   4. カスタムテンプレート関数のためのテンプレート関数マップを定義します。
+//   5. 投稿、ユーザー情報、CSRFトークン、およびフラッシュメッセージを含むインデックスページのテンプレートをレンダリングします。
+//
+// データベースクエリやテンプレートレンダリング中にエラーが発生した場合、エラーをログに記録し、レスポンスを書き込まずに戻ります。
 func getIndex(w http.ResponseWriter, r *http.Request) {
 	me := getSessionUser(r)
 
 	results := []Post{}
 
-	err := db.Select(&results, "SELECT `id`, `user_id`, `body`, `mime`, `created_at` FROM `posts` ORDER BY `created_at` DESC")
+	err := db.Select(&results, "SELECT `id`, `user_id`, `body`, `mime`, `created_at` FROM `posts` ORDER BY `created_at` DESC LIMIT 3")
 	if err != nil {
 		log.Print(err)
 		return
