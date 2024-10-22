@@ -214,16 +214,14 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 
 		p.Comments = comments
 
-		err = db.Get(&p.User, "SELECT * FROM `users` WHERE `id` = ?", p.UserID)
-		if err != nil {
-			return nil, err
-		}
+		// err = db.Get(&p.User, "SELECT * FROM `users` WHERE `id` = ?", p.UserID)
+		// if err != nil {
+		// 	return nil, err
+		// }
 
 		p.CSRFToken = csrfToken
 
-		if p.User.DelFlg == 0 {
-			posts = append(posts, p)
-		}
+		posts = append(posts, p)
 		if len(posts) >= postsPerPage {
 			break
 		}
@@ -412,7 +410,8 @@ func getIndex(w http.ResponseWriter, r *http.Request) {
 
 	results := []Post{}
 
-	query := `SELECT posts.id as id, posts.user_id as user_id, posts.body as body, posts.mime as mime, posts.created_at 
+	query := `SELECT posts.id as id, posts.user_id as user_id, posts.body as body, posts.mime as mime, posts.created_at,
+	users.id as "User.id", users.account_name as "User.account_name", users.authority as "User.authority", users.del_flg as "User.del_flg", users.created_at as "User.created_at"
 	FROM posts 
 	JOIN users ON posts.user_id = users.id 
 	WHERE users.del_flg = 0 
@@ -464,7 +463,14 @@ func getAccountName(w http.ResponseWriter, r *http.Request) {
 
 	results := []Post{}
 
-	err = db.Select(&results, "SELECT `id`, `user_id`, `body`, `mime`, `created_at` FROM `posts` WHERE `user_id` = ? ORDER BY `created_at` DESC", user.ID)
+	query := `SELECT posts.id as id, posts.user_id as user_id, posts.body as body, posts.mime as mime, posts.created_at,
+	users.id as "User.id", users.account_name as "User.account_name", users.authority as "User.authority", users.del_flg as "User.del_flg", users.created_at as "User.created_at"
+	FROM posts 
+	JOIN users ON posts.user_id = users.id 
+	WHERE users.del_flg = 0 and users.id = ?
+	ORDER BY posts.created_at DESC `
+	// err = db.Select(&results, "SELECT `id`, `user_id`, `body`, `mime`, `created_at` FROM `posts` WHERE `user_id` = ? ORDER BY `created_at` DESC", user.ID)
+	err = db.Select(&results, query, user.ID)
 	if err != nil {
 		log.Print(err)
 		return
@@ -552,7 +558,8 @@ func getPosts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	results := []Post{}
-	query := `SELECT posts.id as id, posts.user_id as user_id, posts.body as body, posts.mime as mime, posts.created_at 
+	query := `SELECT posts.id as id, posts.user_id as user_id, posts.body as body, posts.mime as mime, posts.created_at
+		users.id as "User.id", users.account_name as "User.account_name", users.authority as "User.authority", users.del_flg as "User.del_flg", users.created_at as "User.created_at" 
 		FROM posts 
 		JOIN users ON posts.user_id = users.id 
 		WHERE users.del_flg = 0 and
@@ -597,6 +604,7 @@ func getPostsID(w http.ResponseWriter, r *http.Request) {
 
 	results := []Post{}
 	query := `SELECT posts.id as id, posts.user_id as user_id, posts.body as body, posts.mime as mime, posts.created_at FROM posts 
+		users.id as "User.id", users.account_name as "User.account_name", users.authority as "User.authority", users.del_flg as "User.del_flg", users.created_at as "User.created_at"
 	JOIN users ON posts.user_id = users.id 
 	WHERE users.del_flg = 0 and posts.id = ?`
 	// err = db.Select(&results, "SELECT * FROM `posts` WHERE `id` = ?", pid)
