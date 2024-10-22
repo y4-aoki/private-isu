@@ -16,10 +16,11 @@ import (
 	"strings"
 	"time"
 
+	"encoding/json"
+
 	"github.com/bradfitz/gomemcache/memcache"
 	gsm "github.com/bradleypeabody/gorilla-sessions-memcache"
 	"github.com/go-chi/chi/v5"
-	"encoding/json"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
 	"github.com/jmoiron/sqlx"
@@ -152,9 +153,29 @@ func getSessionUser(r *http.Request) User {
 
 	u := User{}
 
-	err := db.Get(&u, "SELECT * FROM `users` WHERE `id` = ?", uid)
-	if err != nil {
+	cacheKey := fmt.Sprintf("user_%d", uid)
+	item, err := memcacheClient.Get(cacheKey)
+	if err == memcache.ErrCacheMiss {
+		err := db.Get(&u, "SELECT * FROM `users` WHERE `id` = ?", uid)
+		if err != nil {
+			return User{}
+		}
+		userData, err := json.Marshal(u)
+		if err != nil {
+			return User{}
+		}
+		memcacheClient.Set(&memcache.Item{
+			Key:        cacheKey,
+			Value:      userData,
+			Expiration: 10,
+		})
+	} else if err != nil {
 		return User{}
+	} else {
+		err = json.Unmarshal(item.Value, &u)
+		if err != nil {
+			return User{}
+		}
 	}
 
 	return u
@@ -190,7 +211,6 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 		cacheKey := fmt.Sprintf("comment_count_%d", p.ID)
 		item, err := memcacheClient.Get(cacheKey)
 		if err == memcache.ErrCacheMiss {
-			log.Printf("cache miss: %s", cacheKey)
 			err := db.Get(&p.CommentCount, "SELECT COUNT(*) AS `count` FROM `comments` WHERE `post_id` = ?", p.ID)
 			if err != nil {
 				return nil, err
@@ -200,11 +220,9 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 				Value:      []byte(strconv.Itoa(p.CommentCount)),
 				Expiration: 10,
 			})
-			log.Printf("cache set: %s", cacheKey)
 		} else if err != nil {
 			return nil, err
 		} else {
-			log.Printf("cache hit: %s", cacheKey)
 			p.CommentCount, err = strconv.Atoi(string(item.Value))
 			if err != nil {
 				return nil, err
