@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"database/sql"
+
 	"github.com/bradfitz/gomemcache/memcache"
 	gsm "github.com/bradleypeabody/gorilla-sessions-memcache"
 	"github.com/go-chi/chi/v5"
@@ -381,8 +383,14 @@ func postRegister(w http.ResponseWriter, r *http.Request) {
 
 	err = stmt.Get(&exists, accountName)
 	if err != nil {
-		log.Print(err)
-		return
+		if err == sql.ErrNoRows {
+			// 結果が存在しない場合の処理
+			log.Printf("No user found with account_name: %s", accountName)
+			exists = 0
+		} else {
+			log.Print(err)
+			return
+		}
 	}
 
 	if exists == 1 {
