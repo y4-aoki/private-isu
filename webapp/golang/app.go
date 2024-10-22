@@ -254,7 +254,12 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 		item, ok = comments_cache[cacheKey]
 		if !ok {
 			log.Printf("cache miss: %s", cacheKey)
-			query := "SELECT * FROM `comments` WHERE `post_id` = ? ORDER BY `created_at` DESC"
+			query := `SELECT comments.id, comments.post_id, comments.user_id, comments.comment, comments.created_at,
+				users.id as "User.id", users.account_name as "User.account_name", users.authority as "User.authority", users.del_flg as "User.del_flg", users.created_at as "User.created_at"
+				FROM comments
+				JOIN users ON comments.user_id = users.id
+				WHERE comments.post_id = ?
+				ORDER BY comments.created_at DESC`
 			if !allComments {
 				query += " LIMIT 3"
 			}
@@ -279,32 +284,32 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 			}
 		}
 
-		for i := 0; i < len(comments); i++ {
-			cacheKey := fmt.Sprintf("user_%d", comments[i].UserID)
-			item, err := memcacheClient.Get(cacheKey)
-			if err == memcache.ErrCacheMiss {
-				err := db.Get(&comments[i].User, "SELECT * FROM `users` WHERE `id` = ?", comments[i].UserID)
-				if err != nil {
-					return nil, err
-				}
-				userData, err := json.Marshal(comments[i].User)
-				if err != nil {
-					return nil, err
-				}
-				memcacheClient.Set(&memcache.Item{
-					Key:        cacheKey,
-					Value:      userData,
-					Expiration: 10,
-				})
-			} else if err != nil {
-				return nil, err
-			} else {
-				err = json.Unmarshal(item.Value, &comments[i].User)
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
+		// for i := 0; i < len(comments); i++ {
+		// 	cacheKey := fmt.Sprintf("user_%d", comments[i].UserID)
+		// 	item, err := memcacheClient.Get(cacheKey)
+		// 	if err == memcache.ErrCacheMiss {
+		// 		err := db.Get(&comments[i].User, "SELECT * FROM `users` WHERE `id` = ?", comments[i].UserID)
+		// 		if err != nil {
+		// 			return nil, err
+		// 		}
+		// 		userData, err := json.Marshal(comments[i].User)
+		// 		if err != nil {
+		// 			return nil, err
+		// 		}
+		// 		memcacheClient.Set(&memcache.Item{
+		// 			Key:        cacheKey,
+		// 			Value:      userData,
+		// 			Expiration: 10,
+		// 		})
+		// 	} else if err != nil {
+		// 		return nil, err
+		// 	} else {
+		// 		err = json.Unmarshal(item.Value, &comments[i].User)
+		// 		if err != nil {
+		// 			return nil, err
+		// 		}
+		// 	}
+		// }
 
 		// reverse
 		for i, j := 0, len(comments)-1; i < j; i, j = i+1, j-1 {
